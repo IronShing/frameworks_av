@@ -51,7 +51,15 @@ bool isCriterionMatched(const AudioMixMatchCriterion& criterion,
     uint32_t ruleWithoutExclusion = criterion.mRule & ~RULE_EXCLUSION_MASK;
     switch(ruleWithoutExclusion) {
         case RULE_MATCH_ATTRIBUTE_USAGE:
-            return criterion.mValue.mUsage == attr.usage;
+            // NX809J: players that never set a usage (AUDIO_USAGE_UNKNOWN, e.g. the WhatsApp
+            // voice-note player) are media everywhere else in the policy (strategy, volume,
+            // routing all treat UNKNOWN as MEDIA), but an exact compare here left them out of
+            // every USAGE_MEDIA dynamic mix. Android Auto captures media through such a mix,
+            // so those players fell through to A2DP, which a head unit in projection mode
+            // ignores: silent voice notes in the car. Match UNKNOWN against MEDIA rules.
+            return criterion.mValue.mUsage == attr.usage
+                    || (attr.usage == AUDIO_USAGE_UNKNOWN
+                        && criterion.mValue.mUsage == AUDIO_USAGE_MEDIA);
         case RULE_MATCH_ATTRIBUTE_CAPTURE_PRESET:
             return criterion.mValue.mSource == attr.source;
         case RULE_MATCH_UID:
